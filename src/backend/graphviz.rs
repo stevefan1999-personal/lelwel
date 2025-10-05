@@ -1,12 +1,12 @@
 use crate::frontend::ast::{AstNode, File, Named, Regex, RuleDecl, TokenDecl};
 use crate::{Cst, NodeRef, SemanticData};
-use std::io::Write;
+use std::io::{BufWriter, Write};
 
 pub struct GraphvizOutput;
 
 impl GraphvizOutput {
-    pub fn run(cst: &Cst, sema: &SemanticData) -> std::io::Result<()> {
-        let mut graph_file = std::fs::File::create("parser.gv")?;
+    pub fn run(cst: &Cst<'_>, sema: &SemanticData<'_>) -> std::io::Result<()> {
+        let mut graph_file = BufWriter::new(std::fs::File::create("parser.gv")?);
         graph_file.write_all(b"digraph {\n")?;
         if let Some(file) = File::cast(cst, NodeRef::ROOT) {
             for rule in file.rule_decls(cst) {
@@ -17,10 +17,10 @@ impl GraphvizOutput {
     }
 
     fn visit_rule(
-        cst: &Cst,
-        sema: &SemanticData,
+        cst: &Cst<'_>,
+        sema: &SemanticData<'_>,
         rule: RuleDecl,
-        output: &mut std::fs::File,
+        output: &mut BufWriter<std::fs::File>,
     ) -> std::io::Result<()> {
         let name = rule.name(cst).unwrap().0;
         output
@@ -37,9 +37,15 @@ impl GraphvizOutput {
         )
     }
 
-    fn skip_paren(cst: &Cst, regex: Regex) -> Regex {
+    fn skip_paren(cst: &Cst<'_>, regex: Regex) -> Regex {
         match regex {
-            Regex::Paren(paren) => Self::skip_paren(cst, paren.inner(cst).unwrap()),
+            Regex::Paren(paren) => {
+                if let Some(inner) = paren.inner(cst) {
+                    Self::skip_paren(cst, inner)
+                } else {
+                    regex
+                }
+            }
             _ => regex,
         }
     }
@@ -56,7 +62,7 @@ impl GraphvizOutput {
         output
     }
 
-    fn skip_name(cst: &Cst, sema: &SemanticData, regex: Regex) -> String {
+    fn skip_name(cst: &Cst<'_>, sema: &SemanticData<'_>, regex: Regex) -> String {
         match regex {
             Regex::Name(name) => {
                 if let Some(rule) = sema
@@ -73,7 +79,7 @@ impl GraphvizOutput {
         }
     }
 
-    fn regex_to_string(cst: &Cst, sema: &SemanticData, regex: Regex) -> String {
+    fn regex_to_string(cst: &Cst<'_>, sema: &SemanticData<'_>, regex: Regex) -> String {
         match regex {
             Regex::Name(name) => {
                 if let Some(value) = sema
@@ -95,10 +101,10 @@ impl GraphvizOutput {
     }
 
     fn visit_regex(
-        cst: &Cst,
-        sema: &SemanticData,
+        cst: &Cst<'_>,
+        sema: &SemanticData<'_>,
         regex: Regex,
-        output: &mut std::fs::File,
+        output: &mut BufWriter<std::fs::File>,
     ) -> std::io::Result<()> {
         match regex {
             Regex::Name(name) => {

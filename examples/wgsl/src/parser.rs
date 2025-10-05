@@ -1,4 +1,4 @@
-use super::lexer::{tokenize, Token};
+use super::lexer::{Token, tokenize};
 use codespan_reporting::diagnostic::Label;
 use std::collections::HashSet;
 
@@ -51,10 +51,9 @@ impl Parser<'_> {
             return;
         }
         let mut nesting_depth = 0usize;
-        let mut it = self.tokens[self.pos..].iter().enumerate();
         let mut pending = vec![];
         let mut last_lt_offset = 0;
-        while let Some((offset, tok)) = it.next() {
+        for (offset, tok) in self.tokens[self.pos..].iter().enumerate() {
             match tok {
                 Token::LPar | Token::LBrak => nesting_depth += 1,
                 Token::RPar | Token::RBrak => {
@@ -103,24 +102,25 @@ impl Parser<'_> {
     fn is_func_call(&self) -> bool {
         matches!(self.peek(1), Token::LPar | Token::Lt) && self.peek(2) != Token::Lt
     }
-    fn is_diagnostic(&self) -> bool {
-        &self.cst.source[self.span()] == "diagnostic"
-    }
 }
 
-impl<'a> ParserCallbacks for Parser<'a> {
-    fn create_tokens(source: &str, diags: &mut Vec<Diagnostic>) -> (Vec<Token>, Vec<Span>) {
+impl<'a> ParserCallbacks<'a> for Parser<'a> {
+    type Diagnostic = Diagnostic;
+    type Context = Context<'a>;
+
+    fn create_tokens(
+        _context: &mut Self::Context,
+        source: &str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> (Vec<Token>, Vec<Span>) {
         tokenize(source, diags)
     }
     fn create_diagnostic(&self, span: Span, message: String) -> Diagnostic {
         Diagnostic::error()
             .with_message(message)
-            .with_labels(vec![Label::primary((), span)])
+            .with_label(Label::primary((), span))
     }
     fn predicate_global_directive_1(&self) -> bool {
-        self.is_diagnostic()
-    }
-    fn predicate_global_directive_2(&self) -> bool {
         self.peek(1) != Token::Semi
     }
     fn predicate_parameters_1(&self) -> bool {
@@ -130,9 +130,6 @@ impl<'a> ParserCallbacks for Parser<'a> {
         self.peek(1) != Token::RBrace
     }
     fn predicate_attribute_1(&self) -> bool {
-        self.is_diagnostic()
-    }
-    fn predicate_attribute_2(&self) -> bool {
         self.peek(1) != Token::RPar
     }
     fn action_template_list_1(&mut self, _diags: &mut Vec<Diagnostic>) {

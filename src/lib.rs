@@ -18,7 +18,7 @@ pub mod backend;
 pub mod frontend;
 pub mod ide;
 
-const VERSION: &str = "0.8.0";
+const VERSION: &str = "0.10.0";
 
 pub fn build(path: &str) {
     let res = compile(
@@ -54,7 +54,7 @@ pub fn compile(
 
     let source = std::fs::read_to_string(input)?;
     let mut diags = vec![];
-    let cst = Parser::parse(&source, &mut diags);
+    let cst = Parser::new(&source, &mut diags).parse(&mut diags);
     let sema = SemanticPass::run(&cst, &mut diags);
 
     if verbose > 1 {
@@ -91,11 +91,11 @@ pub fn compile(
 pub fn generate_syntax_tree(source: &str) -> Vec<String> {
     use std::io::BufWriter;
 
-    use codespan_reporting::term::termcolor::NoColor;
     use codespan_reporting::term::Config;
+    use codespan_reporting::term::termcolor::NoColor;
 
     let mut diags = vec![];
-    let cst = Parser::parse(source, &mut diags);
+    let cst = Parser::new(source, &mut diags).parse(&mut diags);
     let _sema = SemanticPass::run(&cst, &mut diags);
     let mut writer = NoColor::new(BufWriter::new(Vec::new()));
     let config = Config::default();

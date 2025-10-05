@@ -14,17 +14,16 @@ impl LexerError {
         match self {
             Self::Invalid => Diagnostic::error()
                 .with_message("invalid token")
-                .with_labels(vec![Label::primary((), span)]),
+                .with_label(Label::primary((), span)),
             LexerError::UnterminatedComment => Diagnostic::error()
                 .with_message("unterminated comment")
-                .with_labels(vec![Label::primary((), span)]),
+                .with_label(Label::primary((), span)),
         }
     }
 }
 
 fn lex_line_comment(lexer: &mut Lexer<'_, Token>) -> Result<(), LexerError> {
-    let mut it = lexer.remainder().chars();
-    while let Some(c) = it.next() {
+    for c in lexer.remainder().chars() {
         match c {
             '\n' => {
                 lexer.bump(1);
@@ -35,7 +34,7 @@ fn lex_line_comment(lexer: &mut Lexer<'_, Token>) -> Result<(), LexerError> {
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 fn lex_block_comment(lexer: &mut Lexer<'_, Token>) -> Result<(), LexerError> {
     let mut it = lexer.remainder().chars();
@@ -126,6 +125,8 @@ pub enum Token {
     True,
     #[token("false")]
     False,
+    #[token("diagnostic")]
+    Diagnostic,
     #[token(";")]
     Semi,
     #[token("(")]

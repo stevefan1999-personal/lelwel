@@ -1,9 +1,8 @@
 use self::parser::Parser;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::{
-    self,
+    self, Config,
     termcolor::{ColorChoice, StandardStream},
-    Config,
 };
 
 mod lexer;
@@ -17,8 +16,9 @@ fn main() {
 
     let source = &args[1];
     let mut diags = vec![];
-    let cst = Parser::parse(source, &mut diags);
+    let cst = Parser::new(source, &mut diags).parse(&mut diags);
     println!("{cst}");
+
     let writer = StandardStream::stderr(ColorChoice::Auto);
     let config = Config::default();
     let file = SimpleFile::new(&args[1], source);

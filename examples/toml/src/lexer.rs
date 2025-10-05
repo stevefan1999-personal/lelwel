@@ -17,19 +17,19 @@ impl LexerError {
         match self {
             Self::Invalid => Diagnostic::error()
                 .with_message("invalid token")
-                .with_labels(vec![Label::primary((), span)]),
+                .with_label(Label::primary((), span)),
             Self::UnterminatedBasicString => Diagnostic::error()
                 .with_message("unterminated basic string")
-                .with_labels(vec![Label::primary((), span)]),
+                .with_label(Label::primary((), span)),
             Self::UnterminatedLiteralString => Diagnostic::error()
                 .with_message("unterminated literal string")
-                .with_labels(vec![Label::primary((), span)]),
+                .with_label(Label::primary((), span)),
             Self::UnterminatedMlBasicString => Diagnostic::error()
                 .with_message("unterminated multi-line basic string")
-                .with_labels(vec![Label::primary((), span)]),
+                .with_label(Label::primary((), span)),
             Self::UnterminatedMlLiteralString => Diagnostic::error()
                 .with_message("unterminated multi-line literal string")
-                .with_labels(vec![Label::primary((), span)]),
+                .with_label(Label::primary((), span)),
         }
     }
 }
@@ -86,8 +86,7 @@ fn parse_ml_basic_string(lexer: &mut Lexer<'_, Token>) -> Result<Token, LexerErr
     Err(LexerError::UnterminatedMlBasicString)
 }
 fn parse_literal_string(lexer: &mut Lexer<'_, Token>) -> Result<Token, LexerError> {
-    let mut it = lexer.remainder().chars();
-    while let Some(c) = it.next() {
+    for c in lexer.remainder().chars() {
         match c {
             '\'' => {
                 lexer.bump(1);
@@ -104,9 +103,8 @@ fn parse_literal_string(lexer: &mut Lexer<'_, Token>) -> Result<Token, LexerErro
     Err(LexerError::UnterminatedLiteralString)
 }
 fn parse_ml_literal_string(lexer: &mut Lexer<'_, Token>) -> Result<Token, LexerError> {
-    let mut it = lexer.remainder().chars();
     let mut closing = 0;
-    while let Some(c) = it.next() {
+    for c in lexer.remainder().chars() {
         match c {
             '\'' if closing < 5 => {
                 lexer.bump(1);
@@ -143,10 +141,10 @@ fn check_escape(
                     diags.push(
                         Diagnostic::error()
                             .with_message("invalid unicode escape sequence")
-                            .with_labels(vec![Label::primary(
+                            .with_label(Label::primary(
                                 (),
                                 span.start + i - 1..span.start + i + j + 1,
-                            )]),
+                            )),
                     );
                     return;
                 }
@@ -156,10 +154,7 @@ fn check_escape(
                 diags.push(
                     Diagnostic::error()
                         .with_message("non scalar unicode code point")
-                        .with_labels(vec![Label::primary(
-                            (),
-                            span.start + i - 1..span.start + i + 5,
-                        )]),
+                        .with_label(Label::primary((), span.start + i - 1..span.start + i + 5)),
                 );
             }
         }
@@ -173,10 +168,10 @@ fn check_escape(
                     diags.push(
                         Diagnostic::error()
                             .with_message("invalid unicode escape sequence")
-                            .with_labels(vec![Label::primary(
+                            .with_label(Label::primary(
                                 (),
                                 span.start + i - 1..span.start + i + j + 1,
-                            )]),
+                            )),
                     );
                     return;
                 }
@@ -186,19 +181,13 @@ fn check_escape(
                 diags.push(
                     Diagnostic::error()
                         .with_message("non scalar unicode code point")
-                        .with_labels(vec![Label::primary(
-                            (),
-                            span.start + i - 1..span.start + i + 9,
-                        )]),
+                        .with_label(Label::primary((), span.start + i - 1..span.start + i + 9)),
                 );
             } else if val > 0x10FFFF {
                 diags.push(
                     Diagnostic::error()
                         .with_message("out of range unicode escape sequence")
-                        .with_labels(vec![Label::primary(
-                            (),
-                            span.start + i - 1..span.start + i + 9,
-                        )]),
+                        .with_label(Label::primary((), span.start + i - 1..span.start + i + 9)),
                 );
             }
         }
@@ -223,10 +212,7 @@ fn check_escape(
                 diags.push(
                     Diagnostic::error()
                         .with_message("invalid escape sequence")
-                        .with_labels(vec![Label::primary(
-                            (),
-                            span.start + i - 1..span.start + j + 1,
-                        )]),
+                        .with_label(Label::primary((), span.start + i - 1..span.start + j + 1)),
                 );
                 return;
             }
@@ -235,10 +221,7 @@ fn check_escape(
             diags.push(
                 Diagnostic::error()
                     .with_message("invalid escape sequence")
-                    .with_labels(vec![Label::primary(
-                        (),
-                        span.start + i - 1..span.start + i + 1,
-                    )]),
+                    .with_label(Label::primary((), span.start + i - 1..span.start + i + 1)),
             );
         }
         _ => unreachable!(),
@@ -257,9 +240,11 @@ fn check_string(value: &str, span: &Span, diags: &mut Vec<Diagnostic>, is_ml: bo
                 }
                 diags.push(
                     Diagnostic::error()
-                        .with_message(format!("string contains invalid character {:?}", c))
-                        .with_labels(vec![Label::primary((), span.start + i..span.start + i + 1)
-                            .with_message("after this character")]),
+                        .with_message(format!("string contains invalid character {c:?}"))
+                        .with_label(
+                            Label::primary((), span.start + i..span.start + i + 1)
+                                .with_message("after this character"),
+                        ),
                 );
             }
             '\''
@@ -283,9 +268,11 @@ fn check_string(value: &str, span: &Span, diags: &mut Vec<Diagnostic>, is_ml: bo
             c => {
                 diags.push(
                     Diagnostic::error()
-                        .with_message(format!("string contains invalid character {:?}", c))
-                        .with_labels(vec![Label::primary((), span.start + i..span.start + i + 1)
-                            .with_message("after this character")]),
+                        .with_message(format!("string contains invalid character {c:?}"))
+                        .with_label(
+                            Label::primary((), span.start + i..span.start + i + 1)
+                                .with_message("after this character"),
+                        ),
                 );
             }
         }
@@ -297,16 +284,16 @@ fn check_time(value: &str, span: &Span, diags: &mut Vec<Diagnostic>) {
     if hours > 23 {
         diags.push(
             Diagnostic::error()
-                .with_message(format!("invalid hour"))
-                .with_labels(vec![Label::primary((), span.start..span.start + 2)]),
+                .with_message("invalid hour")
+                .with_label(Label::primary((), span.start..span.start + 2)),
         );
     }
     let minutes = it.next().unwrap().parse::<u8>().unwrap();
     if minutes > 59 {
         diags.push(
             Diagnostic::error()
-                .with_message(format!("invalid minute"))
-                .with_labels(vec![Label::primary((), span.start + 3..span.start + 5)]),
+                .with_message("invalid minute")
+                .with_label(Label::primary((), span.start + 3..span.start + 5)),
         );
     }
     if let Some(seconds) = it.next().and_then(|val| val.parse::<u8>().ok()) {
@@ -314,8 +301,8 @@ fn check_time(value: &str, span: &Span, diags: &mut Vec<Diagnostic>) {
         if seconds > 60 {
             diags.push(
                 Diagnostic::error()
-                    .with_message(format!("invalid second"))
-                    .with_labels(vec![Label::primary((), span.start + 6..span.start + 8)]),
+                    .with_message("invalid second")
+                    .with_label(Label::primary((), span.start + 6..span.start + 8)),
             );
         }
     }
@@ -345,8 +332,8 @@ fn check_local_date(value: &str, span: &Span, diags: &mut Vec<Diagnostic>) {
         _ => {
             diags.push(
                 Diagnostic::error()
-                    .with_message(format!("invalid month"))
-                    .with_labels(vec![Label::primary((), span.start + 5..span.start + 7)]),
+                    .with_message("invalid month")
+                    .with_label(Label::primary((), span.start + 5..span.start + 7)),
             );
             31
         }
@@ -354,13 +341,13 @@ fn check_local_date(value: &str, span: &Span, diags: &mut Vec<Diagnostic>) {
     if day < 1 || day > max_days {
         diags.push(
             Diagnostic::error()
-                .with_message(format!("invalid day"))
-                .with_labels(vec![Label::primary((), span.start + 8..span.start + 10)]),
+                .with_message("invalid day")
+                .with_label(Label::primary((), span.start + 8..span.start + 10)),
         );
     }
 }
 fn check_local_date_time(value: &str, span: &Span, diags: &mut Vec<Diagnostic>) {
-    let time_split = value.find(&['t', 'T', ' ']).unwrap();
+    let time_split = value.find(['t', 'T', ' ']).unwrap();
     let (local_date, local_time) = value.split_at(time_split);
     check_local_date(local_date, &(span.start..span.start + time_split), diags);
     check_time(
@@ -370,9 +357,9 @@ fn check_local_date_time(value: &str, span: &Span, diags: &mut Vec<Diagnostic>) 
     );
 }
 fn check_offset_date_time(value: &str, span: &Span, diags: &mut Vec<Diagnostic>) {
-    let time_split = value.find(&['t', 'T', ' ']).unwrap();
+    let time_split = value.find(['t', 'T', ' ']).unwrap();
     let (local_date, time) = value.split_at(time_split);
-    let offset_split = time.find(&['z', 'Z', '+', '-']).unwrap();
+    let offset_split = time.find(['z', 'Z', '+', '-']).unwrap();
     let (local_time, offset_time) = time.split_at(offset_split);
     check_local_date(local_date, &(span.start..span.start + time_split), diags);
     check_time(
@@ -505,7 +492,7 @@ fn map_to_key(token: Token, lexer: &mut Lexer<'_, Token>, diags: &mut Vec<Diagno
                 diags.push(LexerError::Invalid.into_diagnostic(span.start..span.start + 1));
                 Token::Error
             } else {
-                if let Some(offset) = slice.find(|c| matches!(c, '.' | '+')) {
+                if let Some(offset) = slice.find(['.', '+']) {
                     lexer.offset = lexer.span().start + offset;
                 }
                 Token::UnquotedKey

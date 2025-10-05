@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::lexer::{tokenize, Token};
+use crate::lexer::{Token, tokenize};
 use codespan_reporting::diagnostic::Label;
 
 pub type Diagnostic = codespan_reporting::diagnostic::Diagnostic<()>;
@@ -78,13 +78,13 @@ impl Parser<'_> {
                     .with_message(
                         "type specifier missing, ISO C99 and later do not support implicit int",
                     )
-                    .with_labels(vec![Label::primary((), span)]),
+                    .with_label(Label::primary((), span)),
             );
         }
     }
 
     fn is_type_name(&self, pos: usize) -> bool {
-        let name = &self.cst.source[self.cst.spans[pos].clone()];
+        let name = &self.cst.source[self.cst.data.spans[pos].clone()];
         for scopes in self.context.scopes.iter().rev() {
             if let Some(is_type) = scopes.declared_names.get(name) {
                 return *is_type;
@@ -143,14 +143,21 @@ impl Parser<'_> {
 }
 
 #[allow(clippy::ptr_arg)]
-impl ParserCallbacks for Parser<'_> {
-    fn create_tokens(source: &str, diags: &mut Vec<Diagnostic>) -> (Vec<Token>, Vec<Span>) {
+impl<'a> ParserCallbacks<'a> for Parser<'a> {
+    type Diagnostic = Diagnostic;
+    type Context = Context<'a>;
+
+    fn create_tokens(
+        _context: &mut Self::Context,
+        source: &str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> (Vec<Token>, Vec<Span>) {
         tokenize(source, diags)
     }
     fn create_diagnostic(&self, span: Span, message: String) -> Diagnostic {
         Diagnostic::error()
             .with_message(message)
-            .with_labels(vec![Label::primary((), span)])
+            .with_label(Label::primary((), span))
     }
 
     fn create_node_declaration(&mut self, node: NodeRef, diags: &mut Vec<Diagnostic>) {
@@ -190,7 +197,7 @@ impl ParserCallbacks for Parser<'_> {
                         diags.push(
                             Diagnostic::error()
                                 .with_message("redeclaration as different kind of symbol")
-                                .with_labels(vec![Label::primary((), name_span)]),
+                                .with_label(Label::primary((), name_span)),
                         );
                     }
                 }
@@ -216,7 +223,7 @@ impl ParserCallbacks for Parser<'_> {
                     diags.push(
                         Diagnostic::error()
                             .with_message("redeclaration as different kind of symbol")
-                            .with_labels(vec![Label::primary((), name_span)]),
+                            .with_label(Label::primary((), name_span)),
                     );
                 }
             }
@@ -477,7 +484,7 @@ impl ParserCallbacks for Parser<'_> {
             diags.push(
                 Diagnostic::error()
                     .with_message("typedef not allowed in this scope")
-                    .with_labels(vec![Label::primary((), self.span())]),
+                    .with_label(Label::primary((), self.span())),
             );
             return;
         }
@@ -517,7 +524,7 @@ impl ParserCallbacks for Parser<'_> {
                 diags.push(
                     Diagnostic::error()
                         .with_message("typedef in function definition")
-                        .with_labels(vec![Label::primary((), typedef_span.clone())]),
+                        .with_label(Label::primary((), typedef_span.clone())),
                 );
                 self.context
                     .scopes

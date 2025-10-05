@@ -18,5 +18,28 @@ macro_rules! check {
 #[test]
 fn incomplete() {
     check!("incomplete");
+}
+#[test]
+fn template() {
     check!("template");
+}
+#[test]
+fn incomplete_if() {
+    check!("incomplete_if");
+}
+#[test]
+fn missing_comma() {
+    check!("missing_comma");
+}
+#[test]
+fn missing_arrow() {
+    check!("missing_arrow");
+}
+#[test]
+fn invalid_for() {
+    check!("invalid_for");
+}
+#[test]
+fn incomplete_let() {
+    check!("incomplete_let");
 }

@@ -11,7 +11,7 @@ use std::io::BufWriter;
 fn gen_diags(input: &str) -> String {
     let source = std::fs::read_to_string(input).unwrap();
     let mut diags = vec![];
-    let cst = Parser::parse(&source, &mut diags);
+    let cst = Parser::new(&source, &mut diags).parse(&mut diags);
     let _ = SemanticPass::run(&cst, &mut diags);
 
     let mut writer = NoColor::new(BufWriter::new(Vec::new()));
@@ -63,6 +63,15 @@ fn empty() {
     let mut lines = diags.lines();
 
     assert_eq!(lines.next(), Some("error[E008]: missing start rule"));
+    assert_eq!(lines.next(), None);
+}
+
+#[test]
+#[rustfmt::skip]
+fn empty_paren() {
+    let diags = gen_diags("tests/frontend/empty_paren.llw");
+    let mut lines = diags.lines();
+
     assert_eq!(lines.next(), None);
 }
 
@@ -211,6 +220,17 @@ fn mixing_assoc() {
 
 #[test]
 #[rustfmt::skip]
+fn multiple_start() {
+    let diags = gen_diags("tests/frontend/multiple_start.llw");
+    let mut lines = diags.lines();
+
+    assert_eq!(lines.next(), Some("tests/frontend/multiple_start.llw:4:1: error[E031]: multiple start rules defined"));
+    assert_eq!(lines.next(), Some("tests/frontend/multiple_start.llw:5:1: error[E031]: multiple start rules defined"));
+    assert_eq!(lines.next(), None);
+}
+
+#[test]
+#[rustfmt::skip]
 fn node_rename() {
     let diags = gen_diags("tests/frontend/node_rename.llw");
     let mut lines = diags.lines();
@@ -293,6 +313,16 @@ fn redef_node_marker() {
 
 #[test]
 #[rustfmt::skip]
+fn redef_part() {
+    let diags = gen_diags("tests/frontend/redef_part.llw");
+    let mut lines = diags.lines();
+
+    assert_eq!(lines.next(), Some("tests/frontend/redef_part.llw:4:10: error[E033]: rule is already defined as part"));
+    assert_eq!(lines.next(), None);
+}
+
+#[test]
+#[rustfmt::skip]
 fn redundant_elision() {
     let diags = gen_diags("tests/frontend/redundant_elision.llw");
     let mut lines = diags.lines();
@@ -307,13 +337,45 @@ fn redundant_elision() {
 
 #[test]
 #[rustfmt::skip]
+fn return_start() {
+    let diags = gen_diags("tests/frontend/return_start.llw");
+    let mut lines = diags.lines();
+
+    assert_eq!(lines.next(), Some("tests/frontend/return_start.llw:3:4: error[E030]: return is not allowed in start rule"));
+    assert_eq!(lines.next(), None);
+}
+
+#[test]
+#[rustfmt::skip]
+fn start_as_part() {
+    let diags = gen_diags("tests/frontend/start_as_part.llw");
+    let mut lines = diags.lines();
+
+    assert_eq!(lines.next(), Some("tests/frontend/start_as_part.llw:4:6: error[E034]: start rule cannot be defined as part"));
+    assert_eq!(lines.next(), None);
+}
+
+#[test]
+#[rustfmt::skip]
+fn start_elision() {
+    let diags = gen_diags("tests/frontend/start_elision.llw");
+    let mut lines = diags.lines();
+
+    assert_eq!(lines.next(), Some("tests/frontend/start_elision.llw:4:9: error[E032]: start rule node cannot be elided"));
+    assert_eq!(lines.next(), Some("tests/frontend/start_elision.llw:4:9: warning[W004]: node elision is redundant"));
+    assert_eq!(lines.next(), Some("tests/frontend/start_elision.llw:4:4: error[E032]: start rule node cannot be elided"));
+    assert_eq!(lines.next(), None);
+}
+
+#[test]
+#[rustfmt::skip]
 fn syntax_error() {
     let diags = gen_diags("tests/frontend/syntax_error.llw");
     let mut lines = diags.lines();
 
     assert_eq!(lines.next(), Some("tests/frontend/syntax_error.llw:2:1: error: invalid syntax, expected one of: '=', <identifier>, ';'"));
     assert_eq!(lines.next(), Some("tests/frontend/syntax_error.llw:8:1: error: invalid syntax, expected: ')'"));
-    assert_eq!(lines.next(), Some("tests/frontend/syntax_error.llw:13:2: error: invalid syntax, expected one of: <semantic action>, <semantic assertion>, '^', <identifier>, '[', '(', <node creation>, <node marker>, <node rename>, '|', <semantic predicate>, ']', ')', ';', '/', <string literal>, '~'"));
+    assert_eq!(lines.next(), Some("tests/frontend/syntax_error.llw:13:2: error: invalid syntax, expected one of: <semantic action>, '&', <semantic assertion>, '^', <identifier>, '[', '(', <node creation>, <node marker>, <node rename>, '|', <semantic predicate>, ']', ')', ';', '/', <string literal>, '~'"));
     assert_eq!(lines.next(), Some("tests/frontend/syntax_error.llw:13:1: error[E003]: use of undefined rule `b`"));
     assert_eq!(lines.next(), None);
 }
@@ -376,6 +438,15 @@ fn unused_node_marker() {
     let mut lines = diags.lines();
 
     assert_eq!(lines.next(), Some("tests/frontend/unused_node_marker.llw:4:7: warning[W003]: unused node marker"));
+    assert_eq!(lines.next(), None);
+}
+
+#[test]
+#[rustfmt::skip]
+fn unused_part() {
+    let diags = gen_diags("tests/frontend/unused_part.llw");
+    let mut lines = diags.lines();
+
     assert_eq!(lines.next(), None);
 }
 

@@ -23,7 +23,7 @@ macro_rules! set {
 }
 macro_rules! pos {
     ($id: expr) => {
-        format!(concat!("\x1b[34m<{:?}>\x1b[0m"), $id)
+        format!("\x1b[34m<{:?}>\x1b[0m", $id)
     };
 }
 macro_rules! syntax {
@@ -67,7 +67,7 @@ impl DebugPrinter {
         visit(self);
         self.active.pop();
     }
-    pub fn run(&mut self, cst: &Cst, sema: &SemanticData) {
+    pub fn run(&mut self, cst: &Cst<'_>, sema: &SemanticData<'_>) {
         if let Some(file) = File::cast(cst, NodeRef::ROOT) {
             println!("File {}", syntax!(file.syntax().0));
             self.branch(false, |s| {
@@ -92,6 +92,13 @@ impl DebugPrinter {
                 }
             });
             self.branch(false, |s| {
+                println!("{}", member!("part_decls"));
+                let mut it = file.part_decls(cst).peekable();
+                while let Some(decl) = it.next() {
+                    s.branch(it.peek().is_none(), |s| s.print_part_decl(cst, decl));
+                }
+            });
+            self.branch(false, |s| {
                 println!("{}", member!("token_decls"));
                 let mut it = file.token_decls(cst).peekable();
                 while let Some(decl) = it.next() {
@@ -107,7 +114,7 @@ impl DebugPrinter {
             });
         }
     }
-    fn print_token_decl(&mut self, cst: &Cst, decl: TokenDecl) {
+    fn print_token_decl(&mut self, cst: &Cst<'_>, decl: TokenDecl) {
         let name = decl.name(cst).map_or("", |(val, _)| val);
         let symbol = decl.symbol(cst).map_or("", |(val, _)| val);
         println!(
@@ -118,7 +125,7 @@ impl DebugPrinter {
             syntax!(decl.syntax().0),
         );
     }
-    fn print_rule_decl(&mut self, cst: &Cst, sema: &SemanticData, decl: RuleDecl) {
+    fn print_rule_decl(&mut self, cst: &Cst<'_>, sema: &SemanticData<'_>, decl: RuleDecl) {
         let name = decl.name(cst).map_or("", |(val, _)| val);
         println!(
             "Rule {} {} {}",
@@ -129,7 +136,7 @@ impl DebugPrinter {
         decl.regex(cst)
             .inspect(|r| self.branch(true, |s| s.print_regex(cst, sema, *r)));
     }
-    fn print_start_decl(&mut self, cst: &Cst, decl: StartDecl) {
+    fn print_start_decl(&mut self, cst: &Cst<'_>, decl: StartDecl) {
         let rule_name = decl.rule_name(cst).map_or("", |(val, _)| val);
         println!(
             "Start {} {} {}",
@@ -138,7 +145,7 @@ impl DebugPrinter {
             syntax!(decl.syntax().0),
         );
     }
-    fn print_right_decl(&mut self, cst: &Cst, decl: RightDecl) {
+    fn print_right_decl(&mut self, cst: &Cst<'_>, decl: RightDecl) {
         let mut token_names = vec![];
         decl.token_names(cst, |(val, _)| token_names.push(val));
         println!(
@@ -148,7 +155,7 @@ impl DebugPrinter {
             syntax!(decl.syntax().0),
         );
     }
-    fn print_skip_decl(&mut self, cst: &Cst, decl: SkipDecl) {
+    fn print_skip_decl(&mut self, cst: &Cst<'_>, decl: SkipDecl) {
         let mut token_names = vec![];
         decl.token_names(cst, |(val, _)| token_names.push(val));
         println!(
@@ -158,19 +165,29 @@ impl DebugPrinter {
             syntax!(decl.syntax().0),
         );
     }
-    fn print_regex(&mut self, cst: &Cst, sema: &SemanticData, regex: Regex) {
+    fn print_part_decl(&mut self, cst: &Cst<'_>, decl: PartDecl) {
+        let mut rule_names = vec![];
+        decl.rule_names(cst, |(val, _)| rule_names.push(val));
+        println!(
+            "Part {} {} {}",
+            member!(rule_names),
+            pos!(decl.span(cst)),
+            syntax!(decl.syntax().0),
+        );
+    }
+    fn print_regex(&mut self, cst: &Cst<'_>, sema: &SemanticData<'_>, regex: Regex) {
         let first = &sema
             .first_sets
             .get(&regex.syntax())
-            .map_or("{}".to_string(), |set| format!("{:?}", set));
+            .map_or("{}".to_string(), |set| format!("{set:?}"));
         let follow = &sema
             .follow_sets
             .get(&regex.syntax())
-            .map_or("{}".to_string(), |set| format!("{:?}", set));
+            .map_or("{}".to_string(), |set| format!("{set:?}"));
         let recovery = &sema
             .recovery_sets
             .get(&regex.syntax())
-            .map_or("{}".to_string(), |set| format!("{:?}", set));
+            .map_or("{}".to_string(), |set| format!("{set:?}"));
         match regex {
             Regex::OrderedChoice(choice) => {
                 println!(
@@ -225,9 +242,10 @@ impl DebugPrinter {
             }
             Regex::Optional(opt) => {
                 println!(
-                    "Optional {} {} {} {}",
+                    "Optional {} {} {} {} {}",
                     set!(first),
                     set!(follow),
+                    set!(recovery),
                     pos!(opt.span(cst)),
                     syntax!(opt.syntax().0),
                 );
@@ -363,6 +381,15 @@ impl DebugPrinter {
             Regex::Commit(commit) => {
                 println!(
                     "Commit {} {} {} {}",
+                    set!(first),
+                    set!(follow),
+                    pos!(commit.span(cst)),
+                    syntax!(commit.syntax().0),
+                );
+            }
+            Regex::Return(commit) => {
+                println!(
+                    "Return {} {} {} {}",
                     set!(first),
                     set!(follow),
                     pos!(commit.span(cst)),

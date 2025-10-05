@@ -82,6 +82,8 @@ pub enum Token {
     Right,
     #[token("skip")]
     Skip,
+    #[token("part")]
+    Part,
     #[token(":")]
     Colon,
     #[token(";")]
@@ -106,6 +108,8 @@ pub enum Token {
     Hat,
     #[token("~")]
     Tilde,
+    #[token("&")]
+    And,
     #[token("/")]
     Slash,
     #[regex("[a-zA-Z][a-zA-Z_0-9]*")]

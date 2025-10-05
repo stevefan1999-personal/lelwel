@@ -13,11 +13,11 @@ use parser::*;
 #[wasm_bindgen]
 pub fn generate_syntax_tree(source: &str) -> Vec<String> {
     let mut diags = vec![];
-    let cst = Parser::parse(source, &mut diags);
+    let cst = Parser::new(source, &mut diags).parse(&mut diags);
 
-    let file = SimpleFile::new("<input>", source);
     let mut writer = NoColor::new(BufWriter::new(Vec::new()));
     let config = Config::default();
+    let file = SimpleFile::new("<input>", source);
     for diag in diags.iter() {
         term::emit(&mut writer, &config, &file, diag).unwrap();
     }

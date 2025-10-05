@@ -31,6 +31,11 @@ pub const EXPECTED_RULE: &str = "E026";
 pub const MISSING_NODE_NAME: &str = "E027";
 pub const NESTED_ORDERED_CHOICE: &str = "E028";
 pub const ACTION_IN_ORDERED_CHOICE: &str = "E029";
+pub const RETURN_IN_START_RULE: &str = "E030";
+pub const MULTIPLE_START_RULES: &str = "E031";
+pub const ELISION_IN_START_RULE: &str = "E032";
+pub const REDEFINE_AS_PART: &str = "E033";
+pub const START_AS_PART: &str = "E034";
 
 pub const UNUSED_RULE: &str = "W001";
 pub const UNUSED_TOKEN: &str = "W002";
@@ -77,6 +82,11 @@ pub trait LanguageErrors {
     fn useless_commit(span: &Span) -> Self;
     fn replaceable_ordered_choice(span: &Span) -> Self;
     fn action_in_ordered_choice(span: &Span) -> Self;
+    fn return_in_start_rule(span: &Span) -> Self;
+    fn multiple_start_rules(span: &Span, old_span: &Span) -> Self;
+    fn elision_in_start_rule(span: &Span) -> Self;
+    fn redefine_as_part(span: &Span) -> Self;
+    fn start_as_part(span: &Span) -> Self;
 }
 
 impl LanguageErrors for Diagnostic {
@@ -118,7 +128,7 @@ impl LanguageErrors for Diagnostic {
     fn redefinition(span: &Span, binding: &str, old_span: &Span) -> Self {
         Diagnostic::error()
             .with_code(REDEFINITION)
-            .with_message(format!("redefinition of {}", binding,))
+            .with_message(format!("redefinition of {binding}"))
             .with_labels(vec![
                 Label::primary((), span.clone()),
                 Label::secondary((), old_span.clone()).with_message("previous definition"),
@@ -137,7 +147,7 @@ impl LanguageErrors for Diagnostic {
                 ),
             )])
             .with_notes(vec![
-                "note: rule names must start with a lower case letter".to_string()
+                "note: rule names must start with a lower case letter".to_string(),
             ])
     }
 
@@ -224,7 +234,7 @@ impl LanguageErrors for Diagnostic {
             .with_code(LL1_CONFLICT_REP)
             .with_message("LL(1) conflict in repetition")
             .with_labels(vec![
-                Label::primary((), span.clone()).with_message(conflicting)
+                Label::primary((), span.clone()).with_message(conflicting),
             ])
             .with_notes(vec![
                 "note: transform the grammar or add a predicate to the start of the repetition"
@@ -237,7 +247,7 @@ impl LanguageErrors for Diagnostic {
             .with_code(LL1_CONFLICT_OPT)
             .with_message("LL(1) conflict in option")
             .with_labels(vec![
-                Label::primary((), span.clone()).with_message(conflicting)
+                Label::primary((), span.clone()).with_message(conflicting),
             ])
             .with_notes(vec![
                 "note: transform the grammar or add a predicate to the start of the option"
@@ -251,7 +261,7 @@ impl LanguageErrors for Diagnostic {
             .with_message("no tokens consumed")
             .with_labels(vec![Label::primary((), span.clone())])
             .with_notes(vec![
-                "note: such a rule would cause a stack overflow".to_string()
+                "note: such a rule would cause a stack overflow".to_string(),
             ])
     }
 
@@ -413,5 +423,46 @@ impl LanguageErrors for Diagnostic {
                 "note: this is not allowed to prevent side effects where backtracking is possible"
                     .to_string(),
             ])
+    }
+
+    fn return_in_start_rule(span: &Span) -> Self {
+        Diagnostic::error()
+            .with_code(RETURN_IN_START_RULE)
+            .with_message("return is not allowed in start rule")
+            .with_labels(vec![Label::primary((), span.clone())])
+    }
+
+    fn multiple_start_rules(span: &Span, old_span: &Span) -> Self {
+        Diagnostic::error()
+            .with_code(MULTIPLE_START_RULES)
+            .with_message("multiple start rules defined")
+            .with_labels(vec![
+                Label::primary((), span.clone()),
+                Label::secondary((), old_span.clone()).with_message("previous definition"),
+            ])
+            .with_notes(vec![
+                "note: a grammar must have exactly one start rule".to_string(),
+            ])
+    }
+
+    fn elision_in_start_rule(span: &Span) -> Self {
+        Diagnostic::error()
+            .with_code(ELISION_IN_START_RULE)
+            .with_message("start rule node cannot be elided")
+            .with_labels(vec![Label::primary((), span.clone())])
+    }
+
+    fn redefine_as_part(span: &Span) -> Self {
+        Diagnostic::error()
+            .with_code(REDEFINE_AS_PART)
+            .with_message("rule is already defined as part")
+            .with_labels(vec![Label::primary((), span.clone())])
+    }
+
+    fn start_as_part(span: &Span) -> Self {
+        Diagnostic::error()
+            .with_code(START_AS_PART)
+            .with_message("start rule cannot be defined as part")
+            .with_labels(vec![Label::primary((), span.clone())])
     }
 }
